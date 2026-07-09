@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Karnataka Traffic Pattern Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 17px; background: #f8f9fa; }
+    body { display: flex; flex-direction: column; }
+    .navbar { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 22px 30px; font-size: 28px; font-weight: bold; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .container { display: flex; justify-content: center; align-items: flex-start; flex: 1; padding: 30px 20px; gap: 30px; overflow: hidden; }
+    .card { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); width: 600px; max-width: 95%; height: calc(100vh - 140px); overflow-y: auto; }
+    .results-panel { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); width: 700px; max-width: 95%; display: none; overflow-y: auto; max-height: calc(100vh - 140px); }
+    .results-panel.show { display: block; }
+    .card h2 { margin-top: 0; font-size: 30px; text-align: center; color: #28a745; margin-bottom: 15px; }
+    .card p { font-size: 17px; }
+    .form-group { margin-top: 20px; }
+    .form-group label { font-size: 17px; font-weight: 600; display: block; margin-bottom: 8px; }
+    .form-group input[type="text"], 
+    .form-group input[type="date"], 
+    .form-group input[type="time"] { 
+      font-size: 16px; 
+      padding: 13px; 
+      border-radius: 8px; 
+      border: 1px solid #ddd; 
+      width: 100%;
+    }
+    .date-time-row { display: flex; gap: 15px; }
+    .date-time-row > div { flex: 1; }
+    .error-message { color: #dc3545; font-size: 15px; margin-top: 6px; display: none; font-weight: 500; }
+    .error-message.show { display: block; }
+    .map-container { width: 100%; height: 250px; margin-top: 12px; border-radius: 8px; overflow: hidden; border: 2px solid #28a745; display: none; }
+    .map-container.active { display: block; }
+    .map-btn { background: #28a745; color: white; border: none; padding: 13px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: background 0.3s; font-weight: 600; }
+    .btn { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 18px; margin-top: 25px; font-size: 19px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 600; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); transition: all 0.3s; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4); }
+    .btn.loading { position: relative; color: transparent; }
+    .btn.loading::after { content: "⏳ Analyzing Traffic Patterns..."; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 17px; }
+    .prediction { margin-top: 20px; padding: 25px; border-radius: 10px; text-align: center; font-weight: bold; border: 3px solid; font-size: 19px; }
+    .prediction-high { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .prediction-medium { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .prediction-low { background: #d4edda; border-color: #28a745; color: #155724; }
+    .prediction-unknown { background: #e7e7e7; border-color: #999; color: #333; }
+    .accuracy-badge { display: inline-block; background: #28a745; color: white; padding: 12px 22px; border-radius: 25px; font-size: 17px; margin-top: 15px; font-weight: bold; }
+    .route-map { width: 100%; height: 450px; border-radius: 10px; border: 2px solid #ddd; margin-top: 15px; margin-bottom: 25px; }
+    .loading { text-align: center; padding: 30px; color: #666; font-size: 19px; }
+    
+    .location-marker {
+      background: white;
+      border: 3px solid #28a745;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+      position: relative;
+      z-index: 10000 !important;
+    }
+    
+    .location-marker.end {
+      border-color: #dc3545;
+    }
+    
+    .location-label {
+      background: white;
+      border: 2px solid #28a745;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #28a745;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10000 !important;
+    }
+    
+    .location-label.end {
+      border-color: #dc3545;
+      color: #dc3545;
+    }
+    
+    .route-time-tooltip {
+      background: rgba(40, 167, 69, 0.95) !important;
+      border: 2px solid white !important;
+      border-radius: 8px !important;
+      color: white !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      padding: 6px 10px !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+      z-index: 9000 !important;
+    }
+    
+    .leaflet-tooltip-top:before,
+    .leaflet-tooltip-bottom:before,
+    .leaflet-tooltip-left:before,
+    .leaflet-tooltip-right:before {
+      border-top-color: rgba(40, 167, 69, 0.95) !important;
+    }
+
+    .route-legend {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      border: 2px solid #28a745;
+    }
+    
+    .route-legend h4 {
+      margin: 0 0 10px 0;
+      color: #28a745;
+      font-size: 18px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+    }
+    
+    .legend-color {
+      width: 30px;
+      height: 4px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="navbar">🚦 Karnataka Road Traffic Pattern Prediction</div>
+
+<div class="container">
+  <div class="card">
+    <h2>Route Planner & Traffic Prediction</h2>
+    <p>Enter your journey details for <strong>today</strong>.</p>
+
+    <form id="trafficForm">
+      <div class="date-time-row">
+        <div class="form-group" style="margin-top:0;">
+          <label for="date">Date</label>
+          <input type="date" id="date" name="date" readonly required>
+        </div>
+
+        <div class="form-group" style="margin-top:0;">
+          <label for="time">Time</label>
+          <input type="time" id="time" name="time" required>
+        </div>
+      </div>
+      <div id="timeError" class="error-message">Selected time must be in the future</div>
+
+      <div class="form-group">
+        <label for="source">Source Location (Karnataka)</label>
+        <div style="display:flex; gap:10px; align-items:flex-end;">
+          <input type="text" id="source" name="source" placeholder="e.g., Bangalore, Mysore, Mangalore" required style="flex:1;">
+          <button type="button" class="map-btn" onclick="toggleMap('source')">📍 Map</button>
+        </div>
+        <input type="hidden" id="sourceLat" name="sourceLat">
+        <input type="hidden" id="sourceLng" name="sourceLng">
+        <div id="sourceMap" class="map-container"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="destination">Destination Location (Karnataka)</label>
+        <div style="display:flex; gap:10px; align-items:flex-end;">
+          <input type="text" id="destination" name="destination" placeholder="e.g., Hubli, Hassan, Belgaum" required style="flex:1;">
+          <button type="button" class="map-btn" onclick="toggleMap('destination')">📍 Map</button>
+        </div>
+        <input type="hidden" id="destinationLat" name="destinationLat">
+        <input type="hidden" id="destinationLng" name="destinationLng">
+        <div id="destinationMap" class="map-container"></div>
+      </div>
+      
+      <div id="locationError" class="error-message">Source and Destination must be different</div>
+
+      <button type="submit" class="btn" id="submitBtn" disabled>🔮 Predict Traffic</button>
+    </form>
+  </div>
+
+  <div class="results-panel" id="resultsPanel">
+    <h2 style="font-size: 32px;">📊 Traffic Prediction Results</h2>
+    <div id="predictionResult"></div>
+
+    <div class="route-section">
+      <h3 style="color:#28a745; font-size:24px; border-bottom:3px solid #28a745; padding-bottom:10px; margin-top: 30px;">Alternate Route Map</h3>
+      <p style="font-size:15px; color:#666; margin-top:10px;">Hover over routes to see travel times. Zoom in for better view.</p>
+      
+      <div id="routeLegend" class="route-legend" style="display:none;">
+        <h4>📍 Route Legend</h4>
+        <div id="legendContent"></div>
+      </div>
+      
+      <div id="routesMap" class="route-map"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const KARNATAKA_CENTER = [15.3173, 75.7139];
+let sourceMap, destinationMap, sourceMarker, destinationMarker, routesMapInstance;
+let routePolylines = [];
+let routeTooltips = [];
+let startMarker, endMarker, startLabel, endLabel;
+
+function initLeafletMap(containerId, inputId, latId, lngId, markerVar) {
+  const map = L.map(containerId).setView(KARNATAKA_CENTER, 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+  map.on('click', async e => {
+    const {lat, lng} = e.latlng;
+    if (markerVar === 'source' && sourceMarker) sourceMarker.remove();
+    if (markerVar === 'destination' && destinationMarker) destinationMarker.remove();
+
+    const marker = L.marker([lat, lng]).addTo(map);
+    if (markerVar === 'source') sourceMarker = marker; else destinationMarker = marker;
+
+    document.getElementById(latId).value = lat;
+    document.getElementById(lngId).value = lng;
+
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`);
+      const data = await response.json();
+      document.getElementById(inputId).value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      validateForm();
+    } catch(err) {
+      document.getElementById(inputId).value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      validateForm();
+    }
+  });
+
+  return map;
+}
+
+function toggleMap(type) {
+  const mapContainer = document.getElementById(type + 'Map');
+  if (mapContainer.classList.contains('active')) {
+    mapContainer.classList.remove('active');
+  } else {
+    mapContainer.classList.add('active');
+    setTimeout(() => {
+      if (type === 'source' && !sourceMap) sourceMap = initLeafletMap('sourceMap', 'source', 'sourceLat', 'sourceLng', 'source');
+      if (type === 'destination' && !destinationMap) destinationMap = initLeafletMap('destinationMap', 'destination', 'destinationLat', 'destinationLng', 'destination');
+      if (type === 'source' && sourceMap) sourceMap.invalidateSize();
+      if (type === 'destination' && destinationMap) destinationMap.invalidateSize();
+    }, 100);
+  }
+}
+
+function setTodayDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  document.getElementById('date').value = `${year}-${month}-${day}`;
+}
+
+function normalizeLocation(location) {
+  return location.toLowerCase().trim().replace(/[,\s]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+function areSameLocation(loc1, loc2) {
+  const norm1 = normalizeLocation(loc1);
+  const norm2 = normalizeLocation(loc2);
+  
+  if (norm1 === norm2) return true;
+  
+  if (norm1.includes(norm2) || norm2.includes(norm1)) {
+    const shorter = norm1.length < norm2.length ? norm1 : norm2;
+    if (shorter.length >= 4) return true;
+  }
+  
+  return false;
+}
+
+function validateForm() {
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+  const source = document.getElementById('source').value.trim();
+  const destination = document.getElementById('destination').value.trim();
+  const submitBtn = document.getElementById('submitBtn');
+  const timeError = document.getElementById('timeError');
+  const locationError = document.getElementById('locationError');
+
+  let isValid = true;
+
+  if (date && time) {
+    const selectedDateTime = new Date(`${date}T${time}`);
+    const now = new Date();
+
+    if (selectedDateTime <= now) {
+      timeError.classList.add('show');
+      isValid = false;
+    } else {
+      timeError.classList.remove('show');
+    }
+  } else {
+    timeError.classList.remove('show');
+    isValid = false;
+  }
+
+  if (source && destination && areSameLocation(source, destination)) {
+    locationError.classList.add('show');
+    isValid = false;
+  } else {
+    locationError.classList.remove('show');
+  }
+
+  submitBtn.disabled = !isValid;
+  return isValid;
+}
+
+document.getElementById('time').addEventListener('input', validateForm);
+document.getElementById('date').addEventListener('input', validateForm);
+document.getElementById('source').addEventListener('input', validateForm);
+document.getElementById('destination').addEventListener('input', validateForm);
+
+function clearRoutesMap() {
+  if (routesMapInstance) {
+    routesMapInstance.remove();
+  }
+  routePolylines = [];
+  routeTooltips = [];
+  startMarker = null;
+  endMarker = null;
+  startLabel = null;
+  endLabel = null;
+}
+
+function getShortName(fullName) {
+  const parts = fullName.split(',');
+  let shortName = parts[0].trim();
+  
+  if (shortName.length > 25) {
+    const words = shortName.split(' ');
+    shortName = words.slice(0, 2).join(' ');
+  }
+  
+  return shortName;
+}
+
+function drawRoutesOnMap(routes, sourceCoords, destCoords, sourceName, destName) {
+  clearRoutesMap();
+
+  routesMapInstance = L.map('routesMap').setView([sourceCoords[0], sourceCoords[1]], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(routesMapInstance);
+
+  const shortSource = getShortName(sourceName);
+  const shortDest = getShortName(destName);
+
+  const bounds = L.latLngBounds([sourceCoords, destCoords]);
+
+  let legendHTML = '';
+  
+  routes.forEach((route, idx) => {
+    if (!route.points || route.points.length === 0) return;
+    const latLngs = route.points.map(p => [p.latitude, p.longitude]);
+    const color = route.traffic_color || '#22c55e';
+    const weight = idx === 0 ? 7 : 5;
+    const opacity = idx === 0 ? 0.9 : 0.65;
+
+    const polyline = L.polyline(latLngs, {
+      color: color,
+      weight: weight,
+      opacity: opacity,
+      smoothFactor: 1
+    }).addTo(routesMapInstance);
+
+    const routeLabel = idx === 0 ? '⭐ Best Route' : `Route ${idx + 1}`;
+    const tooltipText = `${routeLabel}: ${route.travel_time_min} min (${route.traffic_level} traffic)`;
+    
+    const tooltip = L.tooltip({
+      permanent: false,
+      direction: 'center',
+      className: 'route-time-tooltip',
+      opacity: 1,
+      offset: [0, 0]
+    }).setContent(tooltipText);
+
+    polyline.bindTooltip(tooltip);
+    routePolylines.push(polyline);
+    routeTooltips.push({polyline: polyline, tooltip: tooltip});
+
+    const trafficEmoji = route.traffic_level === 'Low' ? '🟢' : route.traffic_level === 'Moderate' ? '🟡' : '🔴';
+
+    legendHTML += `
+      <div class="legend-item">
+        <div class="legend-color" style="background-color: ${color};"></div>
+        <span>${routeLabel}: ${route.travel_time_min} min - ${trafficEmoji} ${route.traffic_level} Traffic</span>
+      </div>
+    `;
+
+    try {
+      bounds.extend(polyline.getBounds());
+    } catch(e) {}
+  });
+
+  document.getElementById('legendContent').innerHTML = legendHTML;
+  document.getElementById('routeLegend').style.display = 'block';
+
+  const startIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: '<div class="location-marker">🟢</div>',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+
+  startMarker = L.marker([sourceCoords[0], sourceCoords[1]], { 
+    icon: startIcon,
+    zIndexOffset: 10000
+  }).addTo(routesMapInstance);
+
+  startLabel = L.tooltip({
+    permanent: true,
+    direction: 'top',
+    className: 'location-label',
+    offset: [0, -20]
+  }).setContent(`📍 ${shortSource}`);
+  
+  startMarker.bindTooltip(startLabel).openTooltip();
+
+  const endIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: '<div class="location-marker end">🔴</div>',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+
+  endMarker = L.marker([destCoords[0], destCoords[1]], { 
+    icon: endIcon,
+    zIndexOffset: 10000
+  }).addTo(routesMapInstance);
+
+  endLabel = L.tooltip({
+    permanent: true,
+    direction: 'top',
+    className: 'location-label end',
+    offset: [0, -20]
+  }).setContent(`🎯 ${shortDest}`);
+  
+  endMarker.bindTooltip(endLabel).openTooltip();
+
+  routesMapInstance.fitBounds(bounds, { padding: [80, 80] });
+
+  function updateTooltipsByZoom() {
+    const zoom = routesMapInstance.getZoom();
+    const showZoom = 11;
+    routeTooltips.forEach(item => {
+      try {
+        if (zoom >= showZoom) {
+          item.polyline.openTooltip();
+        } else {
+          item.polyline.closeTooltip();
+        }
+      } catch(e) {}
+    });
+  }
+
+  routesMapInstance.on('zoomend', updateTooltipsByZoom);
+  updateTooltipsByZoom();
+}
+
+document.getElementById('trafficForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  if (!validateForm()) return;
+
+  const source = document.getElementById('source').value.trim();
+  const destination = document.getElementById('destination').value.trim();
+  const time = document.getElementById('time').value;
+  const submitBtn = document.getElementById('submitBtn');
+
+  submitBtn.classList.add('loading');
+  submitBtn.disabled = true;
+
+  document.getElementById('predictionResult').innerHTML = '<div class="loading">🔄 Initializing model and analyzing traffic patterns...</div>';
+  document.getElementById('resultsPanel').classList.add('show');
+  document.getElementById('routeLegend').style.display = 'none';
+
+  try {
+    const formData = new FormData();
+    formData.append('source', source);
+    formData.append('destination', destination);
+    formData.append('time', time);
+
+    const resp = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    submitBtn.classList.remove('loading');
+    submitBtn.disabled = false;
+
+    if (data.error) {
+      if (data.status === 'initializing') {
+        document.getElementById('predictionResult').innerHTML = `
+          <div class="prediction prediction-unknown">
+            <div style="font-size:22px;">⏳ Model Initializing</div>
+            <div style="margin-top:12px; font-size:17px;">${data.error}</div>
+            <div style="margin-top:15px; font-size:15px; color:#666;">This usually takes 2-3 seconds. Please try again.</div>
+          </div>
+        `;
+      } else {
+        document.getElementById('predictionResult').innerHTML = `
+          <div class="prediction prediction-unknown">
+            <div style="font-size:22px;">❌ Error</div>
+            <div style="margin-top:12px; font-size:17px;">${data.error}</div>
+          </div>
+        `;
+      }
+      clearRoutesMap();
+      return;
+    }
+
+    const tr = data.traffic_result;
+    const accuracy = Math.min(95.0, parseFloat(tr.accuracy_percentage));
+    
+    let predictionClass = 'prediction-unknown';
+    if (tr.traffic_level === 'low') {
+      predictionClass = 'prediction-low';
+    } else if (tr.traffic_level === 'medium' || tr.traffic_level === 'moderate') {
+      predictionClass = 'prediction-medium';
+    } else if (tr.traffic_level === 'high') {
+      predictionClass = 'prediction-high';
+    }
+    
+    const trafficHTML = `
+      <div class="prediction ${predictionClass}">
+        <div style="font-size:24px; margin-bottom:10px;">${tr.traffic_status}</div>
+        <div style="font-size:18px;">Predicted Traffic Volume: <strong>${tr.predicted_volume}</strong> vehicles</div>
+        <div class="accuracy-badge">📈 Model Accuracy: ${accuracy.toFixed(1)}%</div>
+      </div>
+      <div style="margin-top:15px; padding:15px; background:#f8f9fa; border-radius:8px; font-size:17px;">
+        <div style="margin-bottom:8px;"><strong>From:</strong> ${source}</div>
+        <div style="margin-bottom:8px;"><strong>To:</strong> ${destination}</div>
+        <div><strong>Time:</strong> ${time}</div>
+      </div>
+    `;
+    document.getElementById('predictionResult').innerHTML = trafficHTML;
+
+    const routes = data.alternate_routes || [];
+    
+    if (data.source_coords && data.dest_coords && routes.length > 0) {
+      drawRoutesOnMap(routes, data.source_coords, data.dest_coords, source, destination);
+    } else {
+      clearRoutesMap();
+      document.getElementById('routeLegend').style.display = 'none';
+      
+      if (data.source_coords && data.dest_coords) {
+        routesMapInstance = L.map('routesMap').setView([data.source_coords[0], data.source_coords[1]], 9);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+          maxZoom: 19, 
+          attribution: '&copy; OpenStreetMap contributors' 
+        }).addTo(routesMapInstance);
+        
+        L.marker(data.source_coords).addTo(routesMapInstance)
+          .bindPopup(`<b>Source:</b> ${source}`).openPopup();
+        L.marker(data.dest_coords).addTo(routesMapInstance)
+          .bindPopup(`<b>Destination:</b> ${destination}`);
+        
+        routesMapInstance.fitBounds([data.source_coords, data.dest_coords], { padding: [50, 50] });
+      }
+    }
+
+  } catch(error) {
+    console.error('Error:', error);
+    submitBtn.classList.remove('loading');
+    submitBtn.disabled = false;
+    
+    document.getElementById('predictionResult').innerHTML = `
+      <div class="prediction prediction-unknown">
+        <div style="font-size:22px;">❌ Error</div>
+        <div style="margin-top:12px; font-size:17px;">Failed to get prediction. Please check your internet connection and try again.</div>
+        <div style="margin-top:10px; font-size:14px; color:#666;">${error.message}</div>
+      </div>
+    `;
+    clearRoutesMap();
+    document.getElementById('routeLegend').style.display = 'none';
+  }
+});
+
+window.addEventListener('load', () => {
+  setTodayDate();
+  validateForm();
+});
+</script>
+</body>
+</html>

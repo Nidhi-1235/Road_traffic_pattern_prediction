@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Traffic Detection</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-papm6iu6LTZzfx8Yk7h2d+5I/CZVnoKMz1lslqfXhZkEghc3oR3Pye8QMfRTPfr+lg27eorEqaa0j9Y5j7F9BA==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="#home" class="logo">TrafficDev</a>
+        <ul class="nav-links">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#about">About </a></li>
+            <li><a href="#features">Features</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <h1>Traffic Detection</h1>
+            <p>Detecting congestion and bottlenecks in busy traffic areas</p>
+            <p class="highlight">Traffic event detection and analysis.</p>
+            <a href="{{ url_for('connect') }}" class="cta-button">Let's Connect</a>
+        </div>
+        <div class="hero-image">
+            <img src="{{ url_for('static', filename='traf.jpg') }}" alt="Traffic" class="traffic-img" />
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <h2>About</h2>
+        <div class="about-grid">
+            <div class="about-card">
+                <h3>
+                    Welcome to our Traffic Pattern Prediction platform! We provide real-time traffic insights and predictive analytics to help commuters in Karnataka save time and avoid congestion. By leveraging GPS data, machine learning, and historical traffic patterns, our platform forecasts traffic conditions, suggests the fastest routes, and helps reduce urban congestion. Stay ahead of the traffic, every time!
+                </h3>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <h2>Features</h2>
+        <div class="features-grid">
+            <div class="features-card">
+                <i class="fa-solid fa-traffic-cone"></i>
+                <h3>Smart Traffic Forecasting</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-user"></i>
+                <h3>Optimized Route Suggestions</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Comprehensive Coverage</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Historical Data Insights</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Traffic Condition Forecasting</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Route Comparison</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Journey Time Estimates</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Peak Hours Detection</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Predictive Analytics</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Customizable Routes</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Distance-Based Predictions</h3>
+            </div>
+            <div class="features-card">
+                <i class="fa-solid fa-flag"></i>
+                <h3>Traffic Hotspots</h3>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
