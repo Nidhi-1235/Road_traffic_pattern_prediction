@@ -30,4 +30,4 @@ Run:
 python app.py
 
 ## Author
-Shrutha Shettigar
+Nidhi N
